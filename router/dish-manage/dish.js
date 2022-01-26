@@ -96,11 +96,46 @@ router.get("/obtaindishes", new Auth().m, async (ctx) => {
     const data = res.data.map((item) => {
       return JSON.parse(item);
     });
-    const total = { total: res.pager.Total };
-    const array = { ...{ result: data }, ...total };
+    const tatal = { tatal: res.pager.Total };
+    const array = { ...{ result: data }, ...tatal };
     new result(ctx, "SUCCESS", 200, array).answer();
   } catch (error) {
     new result(ctx, "服务器发生错误", 500).answer();
+  }
+});
+
+// 下架菜品
+router.get("/fromsale", new Auth().m, async (ctx) => {
+  const { id, value } = ctx.query;
+  // 数据库操作
+  //修改该条菜品的onsale为false
+  const query = `db.collection('dishes-data').doc('${id}').update({data:{onsale:false}})`;
+  //查询到再哪个类目下将count自减
+  const count = `db.collection('dishes-category').where({cid:'${value}'}).update({data:{count:db.command.inc(-1)}})`;
+  try {
+    await new getToken().posteve(Updateurl, query);
+    await new getToken().posteve(Updateurl, count);
+    new result(ctx, "下架成功").answer();
+  } catch (e) {
+    new result(ctx, "服务器发生错误", 500).answer();
+  }
+});
+
+// 编辑菜品
+router.post("/modifydishes", new Auth().m, async (ctx) => {
+  const { id, category, name, unitprice, unit, image, value } =
+    ctx.request.body;
+  // 校验
+  new putoncheck(ctx, category, name, unitprice, unit, image, value).start();
+  //当前时间 utcOffset(8) 东八区:北京时间
+  const time = moment().utcOffset(8).format("YYYY-MM-DD HH:mm:ss");
+  const _ = "db.command";
+  const query = `db.collection('dishes-data').doc('${id}').update({data:{category:'${category}',name:'${name}',unitprice:${unitprice},unit:'${unit}',image:${image},quantity:0,onsale:true,cid:'${value}',time:'${time}'}})`;
+  try {
+    await new getToken().posteve(Updateurl, query);
+    new result(ctx, "修改成功").answer();
+  } catch (e) {
+    new result(ctx, "修改失败,服务器错误", 500).answer;
   }
 });
 
